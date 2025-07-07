@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # FastAPI service
+  excel-api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - ENV=production
+      - MAX_FILE_SIZE=25MB
+      - CLEANUP_HOURS=1
+    restart: unless-stopped
+    networks:
+      - excel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Streamlit service
+  excel-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - ENV=production
+    restart: unless-stopped
+    networks:
+      - excel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - excel-api
+      - excel-ui
+    restart: unless-stopped
+    networks:
+      - excel-network
+
+networks:
+  excel-network:
+    driver: bridge
+
+volumes:
+  uploads:
+  outputs:
