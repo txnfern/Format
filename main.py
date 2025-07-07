@@ -338,8 +338,31 @@ class ColorExtractor:
 # API Endpoints
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the main HTML interface"""
-    return FileResponse("index.html", media_type="text/html")
+    """Serve the main HTML interface from external file"""
+    html_file = Path("index.html")
+    if html_file.exists():
+        return FileResponse("index.html", media_type="text/html")
+    else:
+        # Fallback error message
+        return HTMLResponse(
+            content="""
+            <html>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h1>❌ ไม่พบไฟล์ index.html</h1>
+                    <p>กรุณาตรวจสอบว่าไฟล์ <code>index.html</code> อยู่ในไดเรกทอรีเดียวกันกับ <code>main.py</code></p>
+                    <p>โครงสร้างไฟล์ที่ถูกต้อง:</p>
+                    <pre style="text-align: left; background: #f5f5f5; padding: 15px; border-radius: 5px; display: inline-block;">
+project/
+├── main.py
+├── index.html
+├── uploads/
+└── outputs/
+                    </pre>
+                </body>
+            </html>
+            """,
+            status_code=404
+        )
 
 @app.post("/api/process", response_model=ProcessingResult)
 async def process_excel(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
@@ -358,10 +381,10 @@ async def process_excel(background_tasks: BackgroundTasks, file: UploadFile = Fi
         with open(upload_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Process file
+        # Process file - ส่ง original filename ไปด้วย
         start_time = datetime.now()
         extractor = ColorExtractor(job_id)
-        result = extractor.process_file(str(upload_path))
+        result = extractor.process_file(str(upload_path), file.filename)
         end_time = datetime.now()
         
         processing_time = (end_time - start_time).total_seconds()
@@ -422,6 +445,7 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 if __name__ == "__main__":
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
