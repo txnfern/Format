@@ -1,355 +1,355 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Format Tostem</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1em;
-        }
-        .upload-area {
-            border: 3px dashed #007bff;
-            border-radius: 15px;
-            padding: 50px;
-            text-align: center;
-            margin: 30px 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-        }
-        .upload-area:hover {
-            background: #e3f2fd;
-            border-color: #0056b3;
-            transform: translateY(-2px);
-        }
-        .upload-area.dragover {
-            background: #e3f2fd;
-            border-color: #1976d2;
-            transform: scale(1.02);
-        }
-        input[type="file"] {
-            display: none;
-        }
-        .btn {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 10px;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
-        }
-        .btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .progress {
-            display: none;
-            margin: 30px 0;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 25px;
-            background: #e9ecef;
-            border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(45deg, #28a745, #20c997);
-            width: 0%;
-            transition: width 0.3s ease;
-            position: relative;
-        }
-        .progress-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-        .result {
-            margin: 30px 0;
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-            animation: slideIn 0.5s ease;
-        }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .result.success {
-            background: linear-gradient(45deg, #d4edda, #c3e6cb);
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .result.error {
-            background: linear-gradient(45deg, #f8d7da, #f5c6cb);
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .download-links {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .download-link {
-            display: inline-block;
-            margin: 10px;
-            padding: 12px 25px;
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            text-decoration: none;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-        .download-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40,167,69,0.3);
-            color: white;
-            text-decoration: none;
-        }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-        .feature {
-            text-align: center;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            border: 1px solid #dee2e6;
-        }
-        .feature-icon {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎨 Format Tostem</h1>
-        <p class="subtitle">
-            แปลงไฟล์ Excel และสร้างไฟล์ Price/Type อัตโนมัติ
-        </p>
-        
-        <div class="features">
-            <div class="feature">
-                <div class="feature-icon">📊</div>
-                <strong>อ่านเมทริกซ์</strong><br>
-                <small>h/w, 5mm, 6mm, 8mm</small>
+    <html>
+    <head>
+        <title>Format Tostem</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+            }
+            .container {
+                background: white;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+                margin-bottom: 10px;
+                font-size: 2.5em;
+            }
+            .subtitle {
+                text-align: center;
+                color: #666;
+                margin-bottom: 30px;
+                font-size: 1.1em;
+            }
+            .upload-area {
+                border: 3px dashed #007bff;
+                border-radius: 15px;
+                padding: 50px;
+                text-align: center;
+                margin: 30px 0;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                background: #f8f9fa;
+            }
+            .upload-area:hover {
+                background: #e3f2fd;
+                border-color: #0056b3;
+                transform: translateY(-2px);
+            }
+            .upload-area.dragover {
+                background: #e3f2fd;
+                border-color: #1976d2;
+                transform: scale(1.02);
+            }
+            input[type="file"] {
+                display: none;
+            }
+            .btn {
+                background: linear-gradient(45deg, #007bff, #0056b3);
+                color: white;
+                padding: 15px 30px;
+                border: none;
+                border-radius: 25px;
+                cursor: pointer;
+                font-size: 16px;
+                margin: 10px;
+                transition: all 0.3s ease;
+                font-weight: bold;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+            }
+            .btn:disabled {
+                background: #6c757d;
+                cursor: not-allowed;
+                transform: none;
+            }
+            .progress {
+                display: none;
+                margin: 30px 0;
+            }
+            .progress-bar {
+                width: 100%;
+                height: 25px;
+                background: #e9ecef;
+                border-radius: 15px;
+                overflow: hidden;
+                position: relative;
+            }
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(45deg, #28a745, #20c997);
+                width: 0%;
+                transition: width 0.3s ease;
+                position: relative;
+            }
+            .progress-text {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-weight: bold;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            }
+            .result {
+                margin: 30px 0;
+                padding: 20px;
+                border-radius: 10px;
+                display: none;
+                animation: slideIn 0.5s ease;
+            }
+            @keyframes slideIn {
+                from { opacity: 0; transform: translateY(-20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .result.success {
+                background: linear-gradient(45deg, #d4edda, #c3e6cb);
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .result.error {
+                background: linear-gradient(45deg, #f8d7da, #f5c6cb);
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            .download-links {
+                text-align: center;
+                margin-top: 20px;
+            }
+            .download-link {
+                display: inline-block;
+                margin: 10px;
+                padding: 12px 25px;
+                background: linear-gradient(45deg, #28a745, #20c997);
+                color: white;
+                text-decoration: none;
+                border-radius: 20px;
+                transition: all 0.3s ease;
+                font-weight: bold;
+            }
+            .download-link:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+                color: white;
+                text-decoration: none;
+            }
+            .features {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin: 30px 0;
+            }
+            .feature {
+                text-align: center;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 10px;
+                border: 1px solid #dee2e6;
+            }
+            .feature-icon {
+                font-size: 2em;
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🎨 Format Tostem </h1>
+            <p class="subtitle">
+                แปลงไฟล์ Excel และสร้างไฟล์ Price/Type อัตโนมัติ
+            </p>
+            
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <strong>อ่านเมทริกซ์</strong><br>
+                    <small>h/w, 5mm, 6mm, 8mm</small>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎨</div>
+                    <strong>สกัดสี</strong><br>
+                    <small>RGB Hex codes</small>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💾</div>
+                    <strong>ส่งออกไฟล์</strong><br>
+                    <small>Price.xlsx & Type.xlsx</small>
+                </div>
             </div>
-            <div class="feature">
-                <div class="feature-icon">🎨</div>
-                <strong>สกัดสี</strong><br>
-                <small>RGB Hex codes</small>
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div>
+                    <strong style="font-size: 1.2em;">📁 คลิกหรือลากไฟล์ Excel มาวางที่นี่</strong><br><br>
+                    <small style="color: #666;">รองรับไฟล์ .xlsx เท่านั้น (ขนาดไม่เกิน 25MB)</small>
+                </div>
             </div>
-            <div class="feature">
-                <div class="feature-icon">💾</div>
-                <strong>ส่งออกไฟล์</strong><br>
-                <small>Price.xlsx & Type.xlsx</small>
+            
+            <input type="file" id="fileInput" accept=".xlsx" />
+            
+            <div style="text-align: center;">
+                <button class="btn" onclick="uploadFile()" id="uploadBtn" disabled>
+                    🚀 ประมวลผลไฟล์
+                </button>
+            </div>
+            
+            <div class="progress" id="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                    <div class="progress-text" id="progressText">กำลังประมวลผล... 0%</div>
+                </div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <span id="statusText">กำลังอัพโหลดไฟล์...</span>
+                </div>
+            </div>
+            
+            <div class="result" id="result">
+                <div id="resultContent"></div>
+                <div class="download-links" id="downloadLinks"></div>
             </div>
         </div>
-        
-        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-            <div>
-                <strong style="font-size: 1.2em;">📁 คลิกหรือลากไฟล์ Excel มาวางที่นี่</strong><br><br>
-                <small style="color: #666;">รองรับไฟล์ .xlsx เท่านั้น (ขนาดไม่เกิน 25MB)</small>
-            </div>
-        </div>
-        
-        <input type="file" id="fileInput" accept=".xlsx" />
-        
-        <div style="text-align: center;">
-            <button class="btn" onclick="uploadFile()" id="uploadBtn" disabled>
-                🚀 ประมวลผลไฟล์
-            </button>
-        </div>
-        
-        <div class="progress" id="progress">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-                <div class="progress-text" id="progressText">กำลังประมวลผล... 0%</div>
-            </div>
-            <div style="text-align: center; margin-top: 15px;">
-                <span id="statusText">กำลังอัพโหลดไฟล์...</span>
-            </div>
-        </div>
-        
-        <div class="result" id="result">
-            <div id="resultContent"></div>
-            <div class="download-links" id="downloadLinks"></div>
-        </div>
-    </div>
 
-    <script>
-        let selectedFile = null;
-        
-        // File input handling
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            selectedFile = e.target.files[0];
-            updateUploadButton();
-        });
-        
-        // Drag and drop
-        const uploadArea = document.querySelector('.upload-area');
-        
-        uploadArea.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', function(e) {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
+        <script>
+            let selectedFile = null;
             
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                selectedFile = files[0];
-                document.getElementById('fileInput').files = files;
+            // File input handling
+            document.getElementById('fileInput').addEventListener('change', function(e) {
+                selectedFile = e.target.files[0];
                 updateUploadButton();
+            });
+            
+            // Drag and drop
+            const uploadArea = document.querySelector('.upload-area');
+            
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    selectedFile = files[0];
+                    document.getElementById('fileInput').files = files;
+                    updateUploadButton();
+                }
+            });
+            
+            function updateUploadButton() {
+                const btn = document.getElementById('uploadBtn');
+                if (selectedFile && selectedFile.name.endsWith('.xlsx')) {
+                    btn.disabled = false;
+                    btn.textContent = `🚀 ประมวลผล: ${selectedFile.name}`;
+                } else {
+                    btn.disabled = true;
+                    btn.textContent = '🚀 ประมวลผลไฟล์';
+                }
             }
-        });
-        
-        function updateUploadButton() {
-            const btn = document.getElementById('uploadBtn');
-            if (selectedFile && selectedFile.name.endsWith('.xlsx')) {
-                btn.disabled = false;
-                btn.textContent = `🚀 ประมวลผล: ${selectedFile.name}`;
-            } else {
-                btn.disabled = true;
-                btn.textContent = '🚀 ประมวลผลไฟล์';
-            }
-        }
-        
-        async function uploadFile() {
-            if (!selectedFile) return;
             
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            
-            // Show progress
-            document.getElementById('progress').style.display = 'block';
-            document.getElementById('result').style.display = 'none';
-            document.getElementById('uploadBtn').disabled = true;
-            
-            // Simulate progress
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 10;
-                if (progress > 90) progress = 90;
+            async function uploadFile() {
+                if (!selectedFile) return;
                 
-                const progressFill = document.getElementById('progressFill');
-                const progressText = document.getElementById('progressText');
+                const formData = new FormData();
+                formData.append('file', selectedFile);
                 
-                progressFill.style.width = progress + '%';
-                progressText.textContent = `กำลังประมวลผล... ${Math.round(progress)}%`;
-            }, 300);
-            
-            try {
-                const response = await fetch('/api/process', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Show progress
+                document.getElementById('progress').style.display = 'block';
+                document.getElementById('result').style.display = 'none';
+                document.getElementById('uploadBtn').disabled = true;
                 
-                const result = await response.json();
+                // Simulate progress
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 10;
+                    if (progress > 90) progress = 90;
+                    
+                    const progressFill = document.getElementById('progressFill');
+                    const progressText = document.getElementById('progressText');
+                    
+                    progressFill.style.width = progress + '%';
+                    progressText.textContent = `กำลังประมวลผล... ${Math.round(progress)}%`;
+                }, 300);
                 
-                clearInterval(progressInterval);
-                document.getElementById('progressFill').style.width = '100%';
-                document.getElementById('progressText').textContent = 'เสร็จสิ้น! 100%';
-                
-                setTimeout(() => {
+                try {
+                    const response = await fetch('/api/process', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    clearInterval(progressInterval);
+                    document.getElementById('progressFill').style.width = '100%';
+                    document.getElementById('progressText').textContent = 'เสร็จสิ้น! 100%';
+                    
+                    setTimeout(() => {
+                        document.getElementById('progress').style.display = 'none';
+                        showResult(result, response.ok);
+                    }, 1000);
+                    
+                } catch (error) {
+                    clearInterval(progressInterval);
                     document.getElementById('progress').style.display = 'none';
-                    showResult(result, response.ok);
-                }, 1000);
+                    showResult({message: 'เกิดข้อผิดพลาด: ' + error.message}, false);
+                }
                 
-            } catch (error) {
-                clearInterval(progressInterval);
-                document.getElementById('progress').style.display = 'none';
-                showResult({message: 'เกิดข้อผิดพลาด: ' + error.message}, false);
+                document.getElementById('uploadBtn').disabled = false;
             }
             
-            document.getElementById('uploadBtn').disabled = false;
-        }
-        
-        function showResult(result, success) {
-            const resultDiv = document.getElementById('result');
-            const contentDiv = document.getElementById('resultContent');
-            const linksDiv = document.getElementById('downloadLinks');
-            
-            resultDiv.className = 'result ' + (success ? 'success' : 'error');
-            resultDiv.style.display = 'block';
-            
-            if (success) {
-                contentDiv.innerHTML = `
-                    <div style="text-align: center;">
-                        <h3>✅ ประมวลผลสำเร็จ!</h3>
-                        <p><strong>📊 จำนวนรายการ:</strong> ${result.total_records}</p>
-                        <p><strong>⏱️ เวลาประมวลผล:</strong> ${result.processing_time?.toFixed(2)} วินาที</p>
-                    </div>
-                `;
+            function showResult(result, success) {
+                const resultDiv = document.getElementById('result');
+                const contentDiv = document.getElementById('resultContent');
+                const linksDiv = document.getElementById('downloadLinks');
                 
-                linksDiv.innerHTML = `
-                    <a href="/api/download/${result.job_id}/price" class="download-link">
-                        📊 ดาวน์โหลด Price.xlsx
-                    </a>
-                    <a href="/api/download/${result.job_id}/type" class="download-link">
-                        📋 ดาวน์โหลด Type.xlsx
-                    </a>
-                `;
-            } else {
-                contentDiv.innerHTML = `
-                    <div style="text-align: center;">
-                        <h3>❌ เกิดข้อผิดพลาด</h3>
-                        <p>${result.message}</p>
-                    </div>
-                `;
-                linksDiv.innerHTML = '';
+                resultDiv.className = 'result ' + (success ? 'success' : 'error');
+                resultDiv.style.display = 'block';
+                
+                if (success) {
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center;">
+                            <h3>✅ ประมวลผลสำเร็จ!</h3>
+                            <p><strong>📊 จำนวนรายการ:</strong> ${result.total_records}</p>
+                            <p><strong>⏱️ เวลาประมวลผล:</strong> ${result.processing_time?.toFixed(2)} วินาที</p>
+                        </div>
+                    `;
+                    
+                    linksDiv.innerHTML = `
+                        <a href="/api/download/${result.job_id}/price" class="download-link">
+                            📊 ดาวน์โหลด Price.xlsx
+                        </a>
+                        <a href="/api/download/${result.job_id}/type" class="download-link">
+                            📋 ดาวน์โหลด Type.xlsx
+                        </a>
+                    `;
+                } else {
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center;">
+                            <h3>❌ เกิดข้อผิดพลาด</h3>
+                            <p>${result.message}</p>
+                        </div>
+                    `;
+                    linksDiv.innerHTML = '';
+                }
             }
-        }
-    </script>
-</body>
-</html>
+        </script>
+    </body>
+    </html>

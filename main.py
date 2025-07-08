@@ -9,9 +9,9 @@ import re
 import math
 import uuid
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 import pandas as pd
 from openpyxl import load_workbook
 
@@ -84,9 +84,32 @@ class ColorExtractor:
             return None
 
     def normalize_rgb(self, fill):
-        """Convert ARGB color to RGB hex format"""
+        """Convert ARGB color to RGB hex format - แก้ไขให้อ่านสีที่ถูกต้อง"""
         if not fill:
             return "FFFFFF"
+        
+        # ตรวจสอบ patternType ก่อน - เฉพาะ solid fill เท่านั้น
+        if hasattr(fill, 'patternType') and fill.patternType:
+            pattern_value = fill.patternType.value if hasattr(fill.patternType, 'value') else str(fill.patternType)
+            # ถ้าไม่ใช่ solid pattern ให้ถือว่าไม่มีสี
+            if pattern_value != 'solid':
+                return "FFFFFF"
+        else:
+            # ถ้าไม่มี patternType ให้ถือว่าไม่มีสี
+            return "FFFFFF"
+        
+        # รายการสีที่ไม่ต้องการ (Excel theme colors) - ไม่รวม 92CDDC
+        excluded_colors = [
+            "00000000",  # สีใส
+            "DCE6F1",    # Excel theme light blue
+            "B4C6E7",    # Excel theme blue
+            "A9D08E",    # Excel theme green
+            "FFE699",    # Excel theme yellow
+            "F4B183",    # Excel theme orange
+            "F2F2F2",    # เทาอ่อน
+            "E6E6E6",    # เทาอ่อน
+            "D9D9D9",    # เทากลาง
+        ]
         
         color_found = ""
         
@@ -112,10 +135,14 @@ class ColorExtractor:
                 elif len(color_str) == 6:
                     color_found = color_str
         
+        # ตรวจสอบว่าเป็นสีที่ไม่ต้องการหรือไม่
+        if color_found in excluded_colors:
+            return "FFFFFF"
+        
         return color_found if color_found else "FFFFFF"
 
     def find_thickness_matrix(self, ws, raw, thickness_mm):
-        """Find matrix with specific thickness label"""
+        """Find matrix with specific thickness label and its own header"""
         thickness_patterns = [
             rf"Thk\.{thickness_mm}\s*mm",
             rf"{thickness_mm}\s*mm",
@@ -123,34 +150,103 @@ class ColorExtractor:
             rf"หนา\s*{thickness_mm}"
         ]
         
-        thickness_row = thickness_col = None
+        # หา thickness header โดยตรง
         for r in range(raw.shape[0]):
             for c in range(raw.shape[1]):
                 cell_val = str(raw.iat[r, c]).strip() if raw.iat[r, c] is not None else ""
                 for pattern in thickness_patterns:
                     if re.search(pattern, cell_val, re.IGNORECASE):
-                        thickness_row, thickness_col = r, c
-                        break
-                if thickness_row is not None:
-                    break
-            if thickness_row is not None:
-                break
-        
-        if thickness_row is None:
-            return None, None
-        
-        # Search for h/w header
-        search_range = 15
-        for r in range(max(0, thickness_row - search_range), min(raw.shape[0], thickness_row + search_range + 1)):
-            for c in range(max(0, thickness_col - search_range), min(raw.shape[1], thickness_col + search_range + 1)):
-                cell_val = str(raw.iat[r, c]).strip() if raw.iat[r, c] is not None else ""
-                if re.search(r"\bh\s*/\s*w\b", cell_val, re.IGNORECASE):
-                    return r, c
+                        print(f"   ✅ พบ {thickness_mm}mm matrix ที่ row={r+1}, col={c+1}")
+                        return r, c
         
         return None, None
 
+    def find_5mm_matrix(self, ws, raw):
+        """Find 5mm matrix as the main reference matrix"""
+        # หาจาก 5mm header
+        for r in range(raw.shape[0]):
+            for c in range(raw.shape[1]):
+                cell_val = str(raw.iat[r, c]).strip() if raw.iat[r, c] is not None else ""
+                # หา 5mm header
+                if re.search(r"\b5\s*mm\b", cell_val, re.IGNORECASE):
+                    print(f"   ✅ พบ 5mm matrix (main) ที่ row={r+1}, col={c+1}")
+                    return r, c
+        
+        # ถ้าไม่พบ 5mm header ให้หา h/w header แทน (backward compatibility)
+        for r in range(raw.shape[0]):
+            for c in range(raw.shape[1]):
+                if raw.iat[r, c] is None:
+                    continue
+                if isinstance(raw.iat[r, c], str):
+                    if re.search(r"\bh\s*/\s*w\b", raw.iat[r, c], re.IGNORECASE):
+                        print(f"   ✅ พบ h/w matrix (fallback) ที่ row={r+1}, col={c+1}")
+                        return r, c
+        
+        return None, None
+
+    def read_color_matrix_with_auto_offset(self, ws, raw, hr, hc, widths, heights, matrix_name=""):
+        """อ่านสีโดยลอง offset หลายแบบและเลือกที่ดีที่สุด"""
+        print(f"     🔍 {matrix_name}: ลอง offset หลายแบบ...")
+        
+        best_colors = {}
+        max_valid_colors = 0
+        best_offset = (2, 2)
+        
+        # ลอง offset ต่างๆ
+        for row_offset in [1, 2, 3]:
+            for col_offset in [1, 2, 3]:
+                test_colors = {}
+                valid_count = 0
+                
+                # ทดสอบเฉพาะ 4 เซลล์แรก
+                for i_h in range(min(2, len(heights))):
+                    for i_w in range(min(2, len(widths))):
+                        h, w = heights[i_h], widths[i_w]
+                        try:
+                            excel_row = hr + row_offset + i_h
+                            excel_col = hc + col_offset + i_w
+                            
+                            # ตรวจสอบว่าอยู่ในขอบเขต
+                            if excel_row <= ws.max_row and excel_col <= ws.max_column:
+                                cell = ws.cell(row=excel_row, column=excel_col)
+                                color = self.normalize_rgb(cell.fill)
+                                test_colors[(h, w)] = color
+                                if color != "FFFFFF":
+                                    valid_count += 1
+                            else:
+                                test_colors[(h, w)] = "FFFFFF"
+                        except:
+                            test_colors[(h, w)] = "FFFFFF"
+                
+                # ถ้า offset นี้ให้ผลดีกว่า
+                if valid_count > max_valid_colors:
+                    max_valid_colors = valid_count
+                    best_offset = (row_offset, col_offset)
+                    print(f"       🎯 offset +{row_offset},+{col_offset}: {valid_count} สี")
+        
+        # ใช้ offset ที่ดีที่สุดเพื่ออ่านทั้ง matrix
+        row_offset, col_offset = best_offset
+        print(f"     ✅ ใช้ offset: +{row_offset},+{col_offset}")
+        
+        for i_h, h in enumerate(heights):
+            for i_w, w in enumerate(widths):
+                try:
+                    excel_row = hr + row_offset + i_h
+                    excel_col = hc + col_offset + i_w
+                    
+                    if excel_row <= ws.max_row and excel_col <= ws.max_column:
+                        cell = ws.cell(row=excel_row, column=excel_col)
+                        color = self.normalize_rgb(cell.fill)
+                        best_colors[(h, w)] = color
+                    else:
+                        best_colors[(h, w)] = "FFFFFF"
+                except:
+                    best_colors[(h, w)] = "FFFFFF"
+        
+        return best_colors
+
     def read_color_matrix(self, ws, raw, hr, hc, widths, heights):
-        """Read colors from matrix"""
+        """Read colors from matrix - ใช้ offset มาตรฐาน"""
         color_map = {}
         
         for i_h, h in enumerate(heights):
@@ -163,6 +259,7 @@ class ColorExtractor:
                     color = self.normalize_rgb(cell.fill)
                     color_map[(h, w)] = color
                 except Exception:
+                    color_map[(h, w)] = "FFFFFF"
                     continue
         
         return color_map
@@ -190,6 +287,8 @@ class ColorExtractor:
                 if sheet.strip().lower() == "สารบัญ":
                     continue
                 
+                print(f"\n🔍 ประมวลผล Sheet: {sheet}")
+                
                 raw = pd.read_excel(xls, sheet_name=sheet, header=None, engine="openpyxl")
                 ws = wb[sheet]
                 
@@ -215,22 +314,14 @@ class ColorExtractor:
                             if desc is not None:
                                 sheet_description = str(desc).strip()
                 
-                # Find h/w header
-                locs = []
-                for r in range(raw.shape[0]):
-                    for c in range(raw.shape[1]):
-                        if raw.iat[r, c] is None:
-                            continue
-                        if isinstance(raw.iat[r, c], str):
-                            if re.search(r"\bh\s*/\s*w\b", raw.iat[r, c], re.IGNORECASE):
-                                locs.append((r, c))
+                # Find 5mm matrix as main reference
+                hr, hc = self.find_5mm_matrix(ws, raw)
                 
-                if not locs:
+                if hr is None or hc is None:
+                    print(f"   ❌ ไม่พบ 5mm matrix หรือ h/w header ใน {sheet}")
                     continue
                 
-                hr, hc = locs[0]
-                
-                # Read widths and heights
+                # Read widths and heights from 5mm matrix
                 widths = []
                 for c in range(hc + 1, raw.shape[1]):
                     v = self.to_number(raw.iat[hr, c])
@@ -246,17 +337,25 @@ class ColorExtractor:
                     heights.append(h_val)
                 
                 if not widths or not heights:
+                    print(f"   ❌ ไม่พบ dimensions ใน {sheet}")
                     continue
                 
-                # Find thickness matrices
+                print(f"   📊 Dimensions: {len(heights)} heights x {len(widths)} widths")
+                
+                # Read colors from matrices
                 color_5mm = {}
                 color_6mm = {}
                 color_8mm = {}
                 
-                for thickness in [5, 6, 8]:
+                # อ่าน 5mm จาก main matrix (ใช้ offset มาตรฐาน)
+                color_5mm = self.read_color_matrix(ws, raw, hr, hc, widths, heights)
+                print(f"   🎨 5mm (main matrix): {len(color_5mm)} colors")
+                
+                # หา 6mm และ 8mm matrix โดยหา header ของแต่ละ thickness เอง
+                for thickness in [6, 8]:
                     hr_thick, hc_thick = self.find_thickness_matrix(ws, raw, thickness)
                     if hr_thick is not None:
-                        # Read dimensions for thickness matrix
+                        # อ่าน dimensions สำหรับ thickness matrix
                         widths_thick = []
                         for c in range(hc_thick + 1, raw.shape[1]):
                             v = self.to_number(raw.iat[hr_thick, c])
@@ -271,14 +370,37 @@ class ColorExtractor:
                                 break
                             heights_thick.append(h_val)
                         
-                        if widths_thick and heights_thick:
-                            colors = self.read_color_matrix(ws, raw, hr_thick, hc_thick, widths_thick, heights_thick)
-                            if thickness == 5:
-                                color_5mm = colors
-                            elif thickness == 6:
-                                color_6mm = colors
-                            elif thickness == 8:
-                                color_8mm = colors
+                        # ตรวจสอบว่า dimensions ตรงกับ main matrix หรือไม่
+                        if widths_thick == widths and heights_thick == heights:
+                            print(f"     ✅ {thickness}mm dimensions ตรงกับ main matrix")
+                            # ใช้ auto-offset detection
+                            colors = self.read_color_matrix_with_auto_offset(
+                                ws, raw, hr_thick, hc_thick, widths, heights, f"{thickness}mm"
+                            )
+                        elif widths_thick and heights_thick:
+                            print(f"     ⚠️ {thickness}mm dimensions ต่างจาก main matrix")
+                            print(f"       Main: {len(heights)}x{len(widths)}")
+                            print(f"       {thickness}mm: {len(heights_thick)}x{len(widths_thick)}")
+                            # ใช้ dimensions ของ thickness matrix เอง
+                            colors = self.read_color_matrix_with_auto_offset(
+                                ws, raw, hr_thick, hc_thick, widths_thick, heights_thick, f"{thickness}mm"
+                            )
+                        else:
+                            print(f"     ❌ {thickness}mm: ไม่พบ dimensions")
+                            colors = {}
+                        
+                        if thickness == 6:
+                            color_6mm = colors
+                        elif thickness == 8:
+                            color_8mm = colors
+                        
+                        print(f"   🎨 {thickness}mm: {len(colors)} colors อ่านได้")
+                    else:
+                        print(f"   ❌ ไม่พบ {thickness}mm matrix")
+                        if thickness == 6:
+                            color_6mm = {}
+                        elif thickness == 8:
+                            color_8mm = {}
                 
                 # Create Type record
                 type_rows.append({
@@ -296,14 +418,34 @@ class ColorExtractor:
                 # Create Price records
                 for i_h, h in enumerate(heights):
                     for i_w, w in enumerate(widths):
+                        # อ่านราคาจาก 5mm matrix
                         raw_price = raw.iat[hr + 1 + i_h, hc + 1 + i_w]
                         p = self.to_number(raw_price)
                         if p is None:
                             continue
                         
-                        color_5 = color_5mm.get((h, w), "FFFFFF")
-                        color_6 = color_6mm.get((h, w), "FFFFFF")
-                        color_8 = color_8mm.get((h, w), "FFFFFF")
+                        # ตรวจสอบว่ามีข้อมูล thickness หรือไม่
+                        has_thickness_data = bool(color_5mm or color_6mm or color_8mm)
+                        
+                        if has_thickness_data:
+                            # ถ้ามีข้อมูล thickness ให้ใช้สีจาก thickness matrix
+                            color_5 = color_5mm.get((h, w), "FFFFFF")
+                            color_6 = color_6mm.get((h, w), "FFFFFF")
+                            color_8 = color_8mm.get((h, w), "FFFFFF")
+                        else:
+                            # ถ้าไม่มีข้อมูล thickness ให้อ่านสีจาก main matrix และแสดงที่ช่อง 5mm
+                            try:
+                                excel_row = hr + 1 + i_h
+                                excel_col = hc + 1 + i_w
+                                cell = ws.cell(row=excel_row, column=excel_col)
+                                main_color = self.normalize_rgb(cell.fill)
+                                color_5 = main_color
+                                color_6 = "FFFFFF"  # ไม่มีข้อมูล
+                                color_8 = "FFFFFF"  # ไม่มีข้อมูล
+                            except Exception:
+                                color_5 = "FFFFFF"
+                                color_6 = "FFFFFF"
+                                color_8 = "FFFFFF"
                         
                         price_rows.append({
                             "ID": price_id,
@@ -318,6 +460,8 @@ class ColorExtractor:
                             "8mm_Color": color_8
                         })
                         price_id += 1
+                
+                print(f"   ✅ สร้าง {price_id - 1} price records สำหรับ {sheet}")
             
             # Save output files
             price_file = OUTPUT_DIR / f"Price_{self.job_id}.xlsx"
@@ -326,6 +470,8 @@ class ColorExtractor:
             pd.DataFrame(price_rows).to_excel(price_file, index=False)
             pd.DataFrame(type_rows).to_excel(type_file, index=False)
             
+            print(f"\n✅ เสร็จสิ้น: {len(price_rows)} price records, {len(type_rows)} type records")
+            
             return {
                 "price_file": str(price_file),
                 "type_file": str(type_file),
@@ -333,6 +479,7 @@ class ColorExtractor:
             }
             
         except Exception as e:
+            print(f"❌ Error: {str(e)}")
             raise Exception(f"Processing failed: {str(e)}")
 
 # API Endpoints
@@ -445,7 +592,6 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 if __name__ == "__main__":
-    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
