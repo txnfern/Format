@@ -57,6 +57,9 @@ class ProcessingResult(BaseModel):
     type_file: Optional[str] = None
     processing_time: Optional[float] = None
     total_records: Optional[int] = None
+    processed_sheets: Optional[int] = None
+    skipped_sheets: Optional[list] = None
+    warnings: Optional[list] = None
 
 class ColorExtractor:
     def __init__(self, job_id: str):
@@ -283,8 +286,16 @@ class ColorExtractor:
             price_id = 1
             type_id = 1
             
+            # Track processing results
+            processed_sheets = 0
+            skipped_sheets = []
+            warnings = []
+            
             for sheet in xls.sheet_names:
+                # ตรวจสอบ Sheet สารบัญ
                 if sheet.strip().lower() == "สารบัญ":
+                    skipped_sheets.append({"sheet": sheet, "reason": "ข้าม Sheet สารบัญ"})
+                    print(f"   ⚠️ ข้าม Sheet: {sheet} (สารบัญ)")
                     continue
                 
                 print(f"\n🔍 ประมวลผล Sheet: {sheet}")
@@ -318,7 +329,9 @@ class ColorExtractor:
                 hr, hc = self.find_5mm_matrix(ws, raw)
                 
                 if hr is None or hc is None:
-                    print(f"   ❌ ไม่พบ 5mm matrix หรือ h/w header ใน {sheet}")
+                    error_msg = "ไม่พบ 5mm matrix หรือ h/w header"
+                    print(f"   ❌ {error_msg} ใน {sheet}")
+                    skipped_sheets.append({"sheet": sheet, "reason": error_msg})
                     continue
                 
                 # Read widths and heights from 5mm matrix
@@ -337,7 +350,9 @@ class ColorExtractor:
                     heights.append(h_val)
                 
                 if not widths or not heights:
-                    print(f"   ❌ ไม่พบ dimensions ใน {sheet}")
+                    error_msg = "ไม่พบ dimensions (ความกว้าง/ความสูง)"
+                    print(f"   ❌ {error_msg} ใน {sheet}")
+                    skipped_sheets.append({"sheet": sheet, "reason": error_msg})
                     continue
                 
                 print(f"   📊 Dimensions: {len(heights)} heights x {len(widths)} widths")
@@ -352,6 +367,7 @@ class ColorExtractor:
                 print(f"   🎨 5mm (main matrix): {len(color_5mm)} colors")
                 
                 # หา 6mm และ 8mm matrix โดยหา header ของแต่ละ thickness เอง
+                thickness_warnings = []
                 for thickness in [6, 8]:
                     hr_thick, hc_thick = self.find_thickness_matrix(ws, raw, thickness)
                     if hr_thick is not None:
@@ -378,15 +394,19 @@ class ColorExtractor:
                                 ws, raw, hr_thick, hc_thick, widths, heights, f"{thickness}mm"
                             )
                         elif widths_thick and heights_thick:
-                            print(f"     ⚠️ {thickness}mm dimensions ต่างจาก main matrix")
+                            warning_msg = f"Sheet {sheet}: {thickness}mm dimensions ต่างจาก main matrix"
+                            print(f"     ⚠️ {warning_msg}")
                             print(f"       Main: {len(heights)}x{len(widths)}")
                             print(f"       {thickness}mm: {len(heights_thick)}x{len(widths_thick)}")
+                            thickness_warnings.append(warning_msg)
                             # ใช้ dimensions ของ thickness matrix เอง
                             colors = self.read_color_matrix_with_auto_offset(
                                 ws, raw, hr_thick, hc_thick, widths_thick, heights_thick, f"{thickness}mm"
                             )
                         else:
-                            print(f"     ❌ {thickness}mm: ไม่พบ dimensions")
+                            warning_msg = f"Sheet {sheet}: ไม่พบ dimensions สำหรับ {thickness}mm"
+                            print(f"     ❌ {warning_msg}")
+                            thickness_warnings.append(warning_msg)
                             colors = {}
                         
                         if thickness == 6:
@@ -396,11 +416,16 @@ class ColorExtractor:
                         
                         print(f"   🎨 {thickness}mm: {len(colors)} colors อ่านได้")
                     else:
-                        print(f"   ❌ ไม่พบ {thickness}mm matrix")
+                        warning_msg = f"Sheet {sheet}: ไม่พบ {thickness}mm matrix"
+                        print(f"   ❌ {warning_msg}")
+                        thickness_warnings.append(warning_msg)
                         if thickness == 6:
                             color_6mm = {}
                         elif thickness == 8:
                             color_8mm = {}
+                
+                # เพิ่ม warnings สำหรับ thickness matrices
+                warnings.extend(thickness_warnings)
                 
                 # Create Type record
                 type_rows.append({
@@ -416,6 +441,7 @@ class ColorExtractor:
                 type_id += 1
                 
                 # Create Price records
+                sheet_price_count = 0
                 for i_h, h in enumerate(heights):
                     for i_w, w in enumerate(widths):
                         # อ่านราคาจาก 5mm matrix
@@ -460,8 +486,10 @@ class ColorExtractor:
                             "8mm_Color": color_8
                         })
                         price_id += 1
+                        sheet_price_count += 1
                 
-                print(f"   ✅ สร้าง {price_id - 1} price records สำหรับ {sheet}")
+                processed_sheets += 1
+                print(f"   ✅ สร้าง {sheet_price_count} price records สำหรับ {sheet}")
             
             # Save output files
             price_file = OUTPUT_DIR / f"Price_{self.job_id}.xlsx"
@@ -475,7 +503,10 @@ class ColorExtractor:
             return {
                 "price_file": str(price_file),
                 "type_file": str(type_file),
-                "total_records": len(price_rows)
+                "total_records": len(price_rows),
+                "processed_sheets": processed_sheets,
+                "skipped_sheets": skipped_sheets,
+                "warnings": warnings
             }
             
         except Exception as e:
@@ -546,7 +577,10 @@ async def process_excel(background_tasks: BackgroundTasks, file: UploadFile = Fi
             price_file=f"Price_{job_id}.xlsx",
             type_file=f"Type_{job_id}.xlsx",
             processing_time=processing_time,
-            total_records=result["total_records"]
+            total_records=result["total_records"],
+            processed_sheets=result.get("processed_sheets", 0),
+            skipped_sheets=result.get("skipped_sheets", []),
+            warnings=result.get("warnings", [])
         )
         
     except Exception as e:

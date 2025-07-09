@@ -5,8 +5,10 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+            
             body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-family: 'Noto Sans Thai', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 max-width: 800px;
                 margin: 0 auto;
                 padding: 20px;
@@ -24,12 +26,16 @@
                 text-align: center;
                 margin-bottom: 10px;
                 font-size: 2.5em;
+                font-weight: 700;
+                letter-spacing: -0.02em;
             }
             .subtitle {
                 text-align: center;
                 color: #666;
                 margin-bottom: 30px;
                 font-size: 1.1em;
+                font-weight: 400;
+                line-height: 1.6;
             }
             .upload-area {
                 border: 3px dashed #007bff;
@@ -40,6 +46,16 @@
                 cursor: pointer;
                 transition: all 0.3s ease;
                 background: #f8f9fa;
+                font-weight: 500;
+            }
+            .upload-area strong {
+                font-weight: 600;
+                color: #333;
+            }
+            .upload-area small {
+                font-weight: 400;
+                color: #666;
+                line-height: 1.5;
             }
             .upload-area:hover {
                 background: #e3f2fd;
@@ -64,7 +80,9 @@
                 font-size: 16px;
                 margin: 10px;
                 transition: all 0.3s ease;
-                font-weight: bold;
+                font-weight: 600;
+                font-family: inherit;
+                letter-spacing: 0.02em;
             }
             .btn:hover {
                 transform: translateY(-2px);
@@ -137,7 +155,9 @@
                 text-decoration: none;
                 border-radius: 20px;
                 transition: all 0.3s ease;
-                font-weight: bold;
+                font-weight: 600;
+                font-family: inherit;
+                letter-spacing: 0.02em;
             }
             .download-link:hover {
                 transform: translateY(-2px);
@@ -157,6 +177,22 @@
                 background: #f8f9fa;
                 border-radius: 10px;
                 border: 1px solid #dee2e6;
+                transition: all 0.3s ease;
+            }
+            .feature:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+                background: #ffffff;
+            }
+            .feature strong {
+                font-weight: 600;
+                color: #333;
+                font-size: 1.1em;
+            }
+            .feature small {
+                color: #666;
+                font-weight: 400;
+                font-size: 0.9em;
             }
             .feature-icon {
                 font-size: 2em;
@@ -324,13 +360,53 @@
                 resultDiv.style.display = 'block';
                 
                 if (success) {
-                    contentDiv.innerHTML = `
+                    let content = `
                         <div style="text-align: center;">
-                            <h3>✅ ประมวลผลสำเร็จ!</h3>
-                            <p><strong>📊 จำนวนรายการ:</strong> ${result.total_records}</p>
-                            <p><strong>⏱️ เวลาประมวลผล:</strong> ${result.processing_time?.toFixed(2)} วินาที</p>
+                            <h3 style="font-weight: 600; color: #155724; margin-bottom: 20px;">✅ ประมวลผลสำเร็จ!</h3>
+                            <p style="font-weight: 500; margin: 8px 0;"><strong>📊 จำนวนรายการ:</strong> ${result.total_records}</p>
+                            <p style="font-weight: 500; margin: 8px 0;"><strong>📋 Sheets ที่ประมวลผล:</strong> ${result.processed_sheets || 0}</p>
+                            <p style="font-weight: 500; margin: 8px 0;"><strong>⏱️ เวลาประมวลผล:</strong> ${result.processing_time?.toFixed(2)} วินาที</p>
                         </div>
                     `;
+                    
+                    // แสดง sheets ที่ถูกข้าม
+                    if (result.skipped_sheets && result.skipped_sheets.length > 0) {
+                        content += `
+                            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+                                <h4 style="margin-top: 0; color: #856404; font-weight: 600;">⚠️ Sheets ที่ถูกข้าม (${result.skipped_sheets.length})</h4>
+                                <ul style="text-align: left; margin: 10px 0; font-weight: 400; line-height: 1.6;">
+                        `;
+                        
+                        result.skipped_sheets.forEach(item => {
+                            content += `<li style="margin: 5px 0;"><strong style="font-weight: 600;">${item.sheet}:</strong> <span style="font-weight: 400;">${item.reason}</span></li>`;
+                        });
+                        
+                        content += `
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    
+                    // แสดงคำเตือน
+                    if (result.warnings && result.warnings.length > 0) {
+                        content += `
+                            <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px;">
+                                <h4 style="margin-top: 0; color: #004085; font-weight: 600;">ℹ️ คำเตือน (${result.warnings.length})</h4>
+                                <ul style="text-align: left; margin: 10px 0; font-size: 0.9em; font-weight: 400; line-height: 1.6;">
+                        `;
+                        
+                        result.warnings.forEach(warning => {
+                            content += `<li style="margin: 5px 0;">${warning}</li>`;
+                        });
+                        
+                        content += `
+                                </ul>
+                                <small style="color: #666; font-weight: 400; font-style: italic;">*คำเตือนเหล่านี้ไม่กระทบต่อผลลัพธ์ แต่อาจส่งผลต่อความสมบูรณ์ของข้อมูล</small>
+                            </div>
+                        `;
+                    }
+                    
+                    contentDiv.innerHTML = content;
                     
                     linksDiv.innerHTML = `
                         <a href="/api/download/${result.job_id}/price" class="download-link">
@@ -343,8 +419,8 @@
                 } else {
                     contentDiv.innerHTML = `
                         <div style="text-align: center;">
-                            <h3>❌ เกิดข้อผิดพลาด</h3>
-                            <p>${result.message}</p>
+                            <h3 style="font-weight: 600; color: #721c24;">❌ เกิดข้อผิดพลาด</h3>
+                            <p style="font-weight: 400; line-height: 1.6;">${result.message}</p>
                         </div>
                     `;
                     linksDiv.innerHTML = '';
