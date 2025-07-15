@@ -644,22 +644,7 @@ async def root():
     else:
         # Fallback error message
         return HTMLResponse(
-            content="""
-            <html>
-                <body style="font-family: Arial; text-align: center; padding: 50px;">
-                    <h1>❌ ไม่พบไฟล์ index.html</h1>
-                    <p>กรุณาตรวจสอบว่าไฟล์ <code>index.html</code> อยู่ในไดเรกทอรีเดียวกันกับ <code>main.py</code></p>
-                    <p>โครงสร้างไฟล์ที่ถูกต้อง:</p>
-                    <pre style="text-align: left; background: #f5f5f5; padding: 15px; border-radius: 5px; display: inline-block;">
-project/
-├── main.py
-├── index.html
-├── uploads/
-└── outputs/
-                    </pre>
-                </body>
-            </html>
-            """,
+            content="""...error HTML...""",
             status_code=404
         )
 
