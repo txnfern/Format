@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Excel Color Extractor - FastAPI Web Service
-Complete web service with API endpoints and file handling
+Excel Color Extractor - Command Line Interface
+รับ arguments จาก server.py และคืนผลลัพธ์เป็น JSON
 """
 
 import os
@@ -9,57 +9,13 @@ import re
 import math
 import uuid
 import shutil
+import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 import pandas as pd
 from openpyxl import load_workbook
-
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import uvicorn
-
-# Initialize FastAPI app
-app = FastAPI(
-    title="Excel Color Extractor API",
-    description="Extract colors from Excel matrices and generate Price/Type files",
-    version="1.0.0"
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Create directories
-UPLOAD_DIR = Path("uploads")
-OUTPUT_DIR = Path("outputs")
-STATIC_DIR = Path("static")
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
-STATIC_DIR.mkdir(exist_ok=True)
-
-# Serve static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-class ProcessingResult(BaseModel):
-    job_id: str
-    status: str
-    message: str
-    price_file: Optional[str] = None
-    type_file: Optional[str] = None
-    processing_time: Optional[float] = None
-    total_records: Optional[int] = None
-    processed_sheets: Optional[int] = None
-    skipped_sheets: Optional[list] = None
-    warnings: Optional[list] = None
 
 class ColorExtractor:
     def __init__(self, job_id: str):
@@ -182,67 +138,6 @@ class ColorExtractor:
         
         return None, None
 
-    def read_color_matrix_with_auto_offset(self, ws, raw, hr, hc, widths, heights, matrix_name=""):
-        """อ่านสีโดยลอง offset หลายแบบและเลือกที่ดีที่สุด"""
-        print(f"     🔍 {matrix_name}: ลอง offset หลายแบบ...")
-        
-        best_colors = {}
-        max_valid_colors = 0
-        best_offset = (2, 2)
-        
-        # ลอง offset ต่างๆ
-        for row_offset in [1, 2, 3]:
-            for col_offset in [1, 2, 3]:
-                test_colors = {}
-                valid_count = 0
-                
-                # ทดสอบเฉพาะ 4 เซลล์แรก
-                for i_h in range(min(2, len(heights))):
-                    for i_w in range(min(2, len(widths))):
-                        h, w = heights[i_h], widths[i_w]
-                        try:
-                            excel_row = hr + row_offset + i_h
-                            excel_col = hc + col_offset + i_w
-                            
-                            # ตรวจสอบว่าอยู่ในขอบเขต
-                            if excel_row <= ws.max_row and excel_col <= ws.max_column:
-                                cell = ws.cell(row=excel_row, column=excel_col)
-                                color = self.normalize_rgb(cell.fill)
-                                test_colors[(h, w)] = color
-                                if color != "FFFFFF":
-                                    valid_count += 1
-                            else:
-                                test_colors[(h, w)] = "FFFFFF"
-                        except:
-                            test_colors[(h, w)] = "FFFFFF"
-                
-                # ถ้า offset นี้ให้ผลดีกว่า
-                if valid_count > max_valid_colors:
-                    max_valid_colors = valid_count
-                    best_offset = (row_offset, col_offset)
-                    print(f"       🎯 offset +{row_offset},+{col_offset}: {valid_count} สี")
-        
-        # ใช้ offset ที่ดีที่สุดเพื่ออ่านทั้ง matrix
-        row_offset, col_offset = best_offset
-        print(f"     ✅ ใช้ offset: +{row_offset},+{col_offset}")
-        
-        for i_h, h in enumerate(heights):
-            for i_w, w in enumerate(widths):
-                try:
-                    excel_row = hr + row_offset + i_h
-                    excel_col = hc + col_offset + i_w
-                    
-                    if excel_row <= ws.max_row and excel_col <= ws.max_column:
-                        cell = ws.cell(row=excel_row, column=excel_col)
-                        color = self.normalize_rgb(cell.fill)
-                        best_colors[(h, w)] = color
-                    else:
-                        best_colors[(h, w)] = "FFFFFF"
-                except:
-                    best_colors[(h, w)] = "FFFFFF"
-        
-        return best_colors
-
     def read_color_matrix_with_thickness_row(self, ws, raw, hr_main, hc_main, hr_thick, widths, heights, matrix_name=""):
         """อ่านสีจาก thickness row โดยใช้ position ของ main matrix"""
         print(f"     🔍 {matrix_name}: อ่านสีจาก thickness row {hr_thick+1}")
@@ -332,43 +227,6 @@ class ColorExtractor:
         
         return color_map
 
-    def read_column_a_only(self, input_file: str):
-        """Read only column A from all sheets"""
-        try:
-            xls = pd.ExcelFile(input_file, engine="openpyxl")
-            wb = load_workbook(input_file, data_only=True)
-            
-            results = {}
-            
-            for sheet_name in xls.sheet_names:
-                print(f"\n📖 อ่านคอลัมน์ A จาก Sheet: {sheet_name}")
-                
-                ws = wb[sheet_name]
-                column_a_data = []
-                
-                # อ่านคอลัมน์ A จากแถวที่ 1 จนถึงแถวสุดท้าย
-                for row in range(1, ws.max_row + 1):
-                    cell = ws[f'A{row}']
-                    value = cell.value
-                    
-                    # แปลงค่าเป็น string และทำความสะอาด
-                    if value is not None:
-                        clean_value = str(value).strip()
-                        if clean_value:  # ถ้าไม่ใช่ช่องว่าง
-                            column_a_data.append({
-                                "row": row,
-                                "value": clean_value
-                            })
-                
-                results[sheet_name] = column_a_data
-                print(f"   ✅ อ่านได้ {len(column_a_data)} แถวที่มีข้อมูล")
-            
-            return results
-            
-        except Exception as e:
-            print(f"❌ Error reading column A: {str(e)}")
-            raise Exception(f"Failed to read column A: {str(e)}")
-
     def scan_all_matrices_in_file(self, xls, wb):
         """สแกนทุกชีตเพื่อหาจำนวน matrix สูงสุด"""
         max_matrices = 1  # อย่างน้อยต้องมี matrix 1
@@ -431,7 +289,7 @@ class ColorExtractor:
         
         return max_matrices, all_sheet_matrices
 
-    def process_file(self, input_file: str, original_filename: str = None):
+    def process_file(self, input_file: str, output_dir: str, original_filename: str = None):
         """Process the Excel file"""
         try:
             if original_filename:
@@ -611,9 +469,13 @@ class ColorExtractor:
                 processed_sheets += 1
                 print(f"   ✅ สร้าง {sheet_price_count} price records สำหรับ {sheet}")
             
+            # Ensure output directory exists
+            output_path = Path(output_dir)
+            output_path.mkdir(exist_ok=True)
+            
             # Save output files
-            price_file = OUTPUT_DIR / f"Price_{self.job_id}.xlsx"
-            type_file = OUTPUT_DIR / f"Type_{self.job_id}.xlsx"
+            price_file = output_path / f"Price_{self.job_id}.xlsx"
+            type_file = output_path / f"Type_{self.job_id}.xlsx"
             
             pd.DataFrame(price_rows).to_excel(price_file, index=False)
             pd.DataFrame(type_rows).to_excel(type_file, index=False)
@@ -634,156 +496,46 @@ class ColorExtractor:
             print(f"❌ Error: {str(e)}")
             raise Exception(f"Processing failed: {str(e)}")
 
-# API Endpoints
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    """Serve the main HTML interface from external file"""
-    html_file = Path("index.html")
-    if html_file.exists():
-        return FileResponse("index.html", media_type="text/html")
-    else:
-        # Fallback error message
-        return HTMLResponse(
-            content="""...error HTML...""",
-            status_code=404
-        )
-
-@app.post("/api/read-column-a")
-async def read_column_a(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    """Read only column A from all sheets"""
+def main():
+    """Main function to handle command line arguments"""
+    parser = argparse.ArgumentParser(description='Excel Color Extractor - Matrix Mode')
+    parser.add_argument('--input', required=True, help='Input Excel file path')
+    parser.add_argument('--job-id', required=True, help='Job ID for output files')
+    parser.add_argument('--output-dir', default='outputs', help='Output directory')
+    parser.add_argument('--original-filename', help='Original filename for base name extraction')
     
-    # Validate file
-    if not file.filename.endswith('.xlsx'):
-        raise HTTPException(status_code=400, detail="ไฟล์ต้องเป็น .xlsx เท่านั้น")
-    
-    # Generate unique job ID
-    job_id = str(uuid.uuid4())
-    upload_path = UPLOAD_DIR / f"{job_id}_{file.filename}"
+    args = parser.parse_args()
     
     try:
-        # Save uploaded file
-        with open(upload_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # Validate input file
+        if not os.path.exists(args.input):
+            raise FileNotFoundError(f"Input file not found: {args.input}")
         
-        # Read column A only
-        start_time = datetime.now()
-        extractor = ColorExtractor(job_id)
-        column_a_data = extractor.read_column_a_only(str(upload_path))
-        end_time = datetime.now()
+        if not args.input.lower().endswith('.xlsx'):
+            raise ValueError("Input file must be an .xlsx file")
         
-        processing_time = (end_time - start_time).total_seconds()
+        print(f"🚀 Starting Excel Color Extractor...")
+        print(f"📄 Input file: {args.input}")
+        print(f"🆔 Job ID: {args.job_id}")
+        print(f"📁 Output directory: {args.output_dir}")
+        if args.original_filename:
+            print(f"📝 Original filename: {args.original_filename}")
         
-        # Schedule cleanup
-        background_tasks.add_task(cleanup_files, upload_path, delay_hours=1)
-        
-        return {
-            "job_id": job_id,
-            "status": "success",
-            "message": "อ่านคอลัมน์ A สำเร็จ",
-            "processing_time": processing_time,
-            "data": column_a_data,
-            "total_sheets": len(column_a_data),
-            "summary": {
-                sheet: len(data) for sheet, data in column_a_data.items()
-            }
-        }
-        
-    except Exception as e:
-        # Cleanup on error
-        if upload_path.exists():
-            upload_path.unlink()
-        
-        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")
-
-@app.post("/api/process", response_model=ProcessingResult)
-async def process_excel(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    """Process uploaded Excel file"""
-    
-    # Validate file
-    if not file.filename.endswith('.xlsx'):
-        raise HTTPException(status_code=400, detail="ไฟล์ต้องเป็น .xlsx เท่านั้น")
-    
-    # Generate unique job ID
-    job_id = str(uuid.uuid4())
-    upload_path = UPLOAD_DIR / f"{job_id}_{file.filename}"
-    
-    try:
-        # Save uploaded file
-        with open(upload_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # Process file - ส่ง original filename ไปด้วย
-        start_time = datetime.now()
-        extractor = ColorExtractor(job_id)
-        result = extractor.process_file(str(upload_path), file.filename)
-        end_time = datetime.now()
-        
-        processing_time = (end_time - start_time).total_seconds()
-        
-        # Schedule cleanup
-        background_tasks.add_task(cleanup_files, upload_path, delay_hours=1)
-        
-        return ProcessingResult(
-            job_id=job_id,
-            status="success",
-            message="ประมวลผลสำเร็จ",
-            price_file=f"Price_{job_id}.xlsx",
-            type_file=f"Type_{job_id}.xlsx",
-            processing_time=processing_time,
-            total_records=result["total_records"],
-            processed_sheets=result.get("processed_sheets", 0),
-            skipped_sheets=result.get("skipped_sheets", []),
-            warnings=result.get("warnings", [])
+        # Process the file
+        extractor = ColorExtractor(args.job_id)
+        result = extractor.process_file(
+            input_file=args.input,
+            output_dir=args.output_dir,
+            original_filename=args.original_filename
         )
         
-    except Exception as e:
-        # Cleanup on error
-        if upload_path.exists():
-            upload_path.unlink()
+        # Output result as JSON for server.py to parse
+        print(json.dumps(result))
         
-        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")
-
-@app.get("/api/download/{job_id}/{file_type}")
-async def download_file(job_id: str, file_type: str):
-    """Download processed files"""
-    
-    if file_type == "price":
-        file_path = OUTPUT_DIR / f"Price_{job_id}.xlsx"
-        filename = "Price.xlsx"
-    elif file_type == "type":
-        file_path = OUTPUT_DIR / f"Type_{job_id}.xlsx"
-        filename = "Type.xlsx"
-    else:
-        raise HTTPException(status_code=400, detail="ประเภทไฟล์ไม่ถูกต้อง")
-    
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="ไม่พบไฟล์")
-    
-    return FileResponse(
-        path=file_path,
-        filename=filename,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-async def cleanup_files(file_path: Path, delay_hours: int = 1):
-    """Background task to cleanup files after delay"""
-    import asyncio
-    await asyncio.sleep(delay_hours * 3600)
-    
-    if file_path.exists():
-        file_path.unlink()
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        print(f"❌ Error: {str(e)}", file=sys.stderr)
+        exit(1)
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=port,
-        log_level="info"
-    )
+    import sys
+    main()

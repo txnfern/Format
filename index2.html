@@ -20,6 +20,7 @@
                 padding: 30px;
                 border-radius: 15px;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            
             }
             .header {
                 text-align: center;
@@ -33,6 +34,7 @@
                 text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
                 font-weight: 700;
             }
+
             .container h1 {
                 color: #333;
                 text-align: center;
@@ -210,9 +212,7 @@
                 font-size: 2em;
                 margin-bottom: 10px;
             }
-
-            /* Corner Navigation */
-        .corner-nav {
+            .corner-nav {
             position: fixed;
             top: 20px;
             right: 20px;
@@ -221,7 +221,7 @@
             gap: 10px;
             height: 50px;
         }
-
+        
         .corner-btn {
             padding: 12px 20px;
             border-radius: 25px;
@@ -241,7 +241,6 @@
             color: white;
             border-color: #4ecdc4;
         }
-
         </style>
     </head>
     <body>
@@ -255,9 +254,9 @@
         </div>
 
         <div class="container">
-            <h1>Original</h1>
+            <h1>Joint</h1>
             <p class="subtitle">
-                สำหรับตาราง Matrix (มีทั้ง Width , Height ในตารางเดียวกัน)
+                สำหรับตารางที่มี Width , Height อย่างใดอย่างหนึ่ง
             </p>
             
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -361,7 +360,7 @@
                 }, 300);
                 
                 try {
-                    const response = await fetch('/api/process-matrix', {
+                    const response = await fetch('/api/process-joint', {
                         method: 'POST',
                         body: formData
                     });
