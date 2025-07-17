@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import re
 from typing import List, Dict, Tuple, Optional
 import logging
 from openpyxl import load_workbook
@@ -14,16 +15,64 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class ExcelProcessor:
-    def __init__(self, input_file: str):
+    def __init__(self, input_file: str, original_filename: str = None):
         self.input_file = input_file
+        self.original_filename = original_filename
         self.price_records: List[Dict] = []
         self.type_records: List[Dict] = []
         self.price_id = 1
         self.type_id = 1
         self.description_map: Dict[str, str] = {}
+        
+        # Extract series name from filename
+        self.series_name = self.extract_series_from_filename()
+        print(f"📱 ชื่อ Serie: {self.series_name}")
+        
         # Cache for optimized reading
         self._wb = None
         self._sheets_cache = {}
+    
+    def extract_series_from_filename(self) -> str:
+        """ดึงชื่อ series จากชื่อไฟล์ โดยจัดการกับ UUID และ timestamp"""
+        if self.original_filename:
+            # ใช้ชื่อไฟล์ต้นฉบับ
+            base_name = os.path.splitext(self.original_filename)[0]
+        else:
+            # ใช้ชื่อไฟล์ปัจจุบัน
+            base_name = os.path.splitext(os.path.basename(self.input_file))[0]
+        
+        # ลบ timestamp pattern (YYYYMMDD_HHMMSS_)
+        timestamp_pattern = r'^\d{8}_\d{6}_[a-f0-9]{8}_'
+        base_name = re.sub(timestamp_pattern, '', base_name)
+        
+        # ลบ UUID pattern (8-4-4-4-12 characters)
+        uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_'
+        base_name = re.sub(uuid_pattern, '', base_name)
+        
+        # ลบ job_id pattern ที่อาจมี
+        job_id_pattern = r'^[a-f0-9]{8}_'
+        base_name = re.sub(job_id_pattern, '', base_name)
+        
+        # ลบ prefix/suffix ที่ไม่ต้องการ
+        suffixes_to_remove = ['_data', '_price', '_export', '_backup', '_processed']
+        prefixes_to_remove = ['data_', 'price_', 'export_', 'backup_', 'processed_']
+        
+        # ลบ suffix
+        for suffix in suffixes_to_remove:
+            if base_name.lower().endswith(suffix):
+                base_name = base_name[:-len(suffix)]
+                break
+        
+        # ลบ prefix
+        for prefix in prefixes_to_remove:
+            if base_name.lower().startswith(prefix):
+                base_name = base_name[len(prefix):]
+                break
+        
+        # ลบช่องว่างและอักขระพิเศษ
+        base_name = base_name.strip().replace(' ', '_')
+        
+        return base_name
     
     def validate_file(self) -> bool:
         """Validate that the input file exists and is accessible"""
@@ -183,7 +232,7 @@ class ExcelProcessor:
             
             self.price_records.append({
                 'ID': self.price_id,
-                'Series': 0,
+                'Serie': self.series_name,  # เปลี่ยนจาก 'Series': 0
                 'Type': table_name,
                 'Width': w,
                 'Height': 0,
@@ -218,7 +267,7 @@ class ExcelProcessor:
             
             self.price_records.append({
                 'ID': self.price_id,
-                'Series': 0,
+                'Serie': self.series_name,  # เปลี่ยนจาก 'Series': 0
                 'Type': table_name,
                 'Width': 0,
                 'Height': h,
@@ -235,7 +284,7 @@ class ExcelProcessor:
         """Add a type record with dimension ranges"""
         self.type_records.append({
             'ID': self.type_id,
-            'Series': 0,
+            'Serie': self.series_name,  # เปลี่ยนจาก 'Series': 0
             'Type': table_name,
             'Description': '',  # Will be updated later
             'width_min': wmin,
@@ -385,18 +434,19 @@ class ExcelProcessor:
                 self._wb.close()
                 print("🔒 ปิดไฟล์แล้ว")
 
-def process_multi_table_excel(input_file: str, job_id: str) -> bool:
+def process_multi_table_excel(input_file: str, job_id: str, original_filename: str = None) -> bool:
     """
     Process multi-table Excel file and generate Price.xlsx and Type.xlsx
     
     Args:
         input_file: Path to the input Excel file
         job_id: Unique job identifier for output files
+        original_filename: Original filename before processing
         
     Returns:
         bool: True if processing was successful, False otherwise
     """
-    processor = ExcelProcessor(input_file)
+    processor = ExcelProcessor(input_file, original_filename)
     return processor.process(job_id)
 
 # Flask Web Application
@@ -478,6 +528,7 @@ def process_file():
         job_id = f"{timestamp}_{random_suffix}"
         
         # Save uploaded file
+        original_filename = file.filename  # เก็บชื่อไฟล์ต้นฉบับ
         filename = secure_filename(file.filename)
         input_path = os.path.join(UPLOAD_FOLDER, f'{job_id}_{filename}')
         file.save(input_path)
@@ -487,8 +538,8 @@ def process_file():
         # Record start time
         start_time = time.time()
         
-        # Process the file directly
-        success = process_multi_table_excel(input_path, job_id)
+        # Process the file with original filename
+        success = process_multi_table_excel(input_path, job_id, original_filename)
         
         # Calculate processing time
         processing_time = time.time() - start_time
