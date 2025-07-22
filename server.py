@@ -19,7 +19,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB
-ALLOWED_EXTENSIONS = {'xlsx'}
+ALLOWED_EXTENSIONS = {'xlsx', 'pdf'}
 
 # Create directories if they don't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -47,7 +47,8 @@ def load_html_template(template_name='original'):
     
     template_files = {
         'original': 'index.html', 
-        'joint': 'index2.html'
+        'joint': 'index2.html',
+        'format': 'index3.html'  # New Format mode
     }
     
     try:
@@ -87,6 +88,13 @@ def joint():
     """Serve the joint HTML page"""
     cleanup_old_files()
     html_template = load_html_template('joint')
+    return render_template_string(html_template)
+
+@app.route('/format')
+def format_page():
+    """Serve the format (PDF processing) HTML page"""
+    cleanup_old_files()
+    html_template = load_html_template('format')
     return render_template_string(html_template)
 
 def process_matrix_file_with_main_py(input_path, job_id, original_filename):
@@ -228,6 +236,64 @@ def process_joint_file_with_main2_py(input_path, job_id):
         logger.error(f"Unexpected error with main2.py: {e}")
         return None, f'เกิดข้อผิดพลาดที่ไม่คาดคิด: {str(e)}'
 
+def process_pdf_file_with_main3_py(input_path, start_page, job_id):
+    """Process PDF file using main3.py for Format mode"""
+    try:
+        # Record start time
+        start_time = time.time()
+        
+        # Run main3.py processing script
+        result = subprocess.run([
+            'python', 'main3.py', input_path, str(start_page), job_id
+        ], capture_output=True, text=True, cwd=os.getcwd())
+        
+        # Calculate processing time
+        processing_time = time.time() - start_time
+        
+        # Clean up input file
+        try:
+            os.remove(input_path)
+        except:
+            pass
+        
+        if result.returncode != 0:
+            logger.error(f"Processing failed with main3.py: {result.stderr}")
+            return None, f'เกิดข้อผิดพลาดในการประมวลผล: {result.stderr}'
+        
+        # Parse JSON output from main3.py
+        try:
+            output_lines = result.stdout.strip().split('\n')
+            json_output = None
+            
+            # Find JSON output from last line
+            for line in reversed(output_lines):
+                line = line.strip()
+                if line.startswith('{') and line.endswith('}'):
+                    json_output = json.loads(line)
+                    break
+            
+            if not json_output:
+                return None, 'ไม่พบผลลัพธ์จาก main3.py'
+            
+            # Check if there's an error in the output
+            if 'error' in json_output:
+                return None, json_output['error']
+            
+            return {
+                'success': True,
+                'data': json_output,
+                'processing_time': processing_time,
+                'message': f'ประมวลผลสำเร็จ: พบ {json_output.get("total_references", 0)} Reference Code และ {json_output.get("total_glass", 0)} GLASS'
+            }, None
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON output from main3.py: {e}")
+            return None, f'ไม่สามารถอ่านผลลัพธ์จาก main3.py: {str(e)}'
+        
+    except Exception as e:
+        logger.error(f"Unexpected error with main3.py: {e}")
+        return None, f'เกิดข้อผิดพลาดที่ไม่คาดคิด: {str(e)}'
+
 # API endpoints
 @app.route('/api/process-matrix', methods=['POST'])
 def process_matrix_file():
@@ -242,7 +308,7 @@ def process_matrix_file():
             return jsonify({'message': 'ไม่ได้เลือกไฟล์'}), 400
         
         # Validate file
-        if not allowed_file(file.filename):
+        if not file.filename.lower().endswith('.xlsx'):
             return jsonify({'message': 'ประเภทไฟล์ไม่ถูกต้อง กรุณาอัพโหลดไฟล์ .xlsx'}), 400
         
         # Check file size
@@ -293,7 +359,7 @@ def process_joint_file():
             return jsonify({'message': 'ไม่ได้เลือกไฟล์'}), 400
         
         # Validate file
-        if not allowed_file(file.filename):
+        if not file.filename.lower().endswith('.xlsx'):
             return jsonify({'message': 'ประเภทไฟล์ไม่ถูกต้อง กรุณาอัพโหลดไฟล์ .xlsx'}), 400
         
         # Check file size
@@ -331,9 +397,86 @@ def process_joint_file():
         logger.error(f"Unexpected error in joint processing: {e}")
         return jsonify({'message': f'เกิดข้อผิดพลาดที่ไม่คาดคิด: {str(e)}'}), 500
 
+# NEW: PDF Format processing endpoint
+@app.route('/upload', methods=['POST'])
+def upload_pdf():
+    """Handle PDF file upload and processing for Format mode using main3.py"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'ไม่พบไฟล์'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'ไม่ได้เลือกไฟล์'}), 400
+        
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'error': 'กรุณาเลือกไฟล์ PDF เท่านั้น'}), 400
+        
+        # Check file size
+        file_content = file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+            return jsonify({'error': 'ไฟล์ใหญ่เกินไป (สูงสุด 25MB)'}), 400
+        file.seek(0)  # Reset file pointer
+        
+        # Get start page from request
+        start_page = int(request.form.get('start_page', 3))
+        
+        # Generate job ID
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        random_suffix = str(uuid.uuid4())[:8]
+        job_id = f"{timestamp}_{random_suffix}"
+        
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        input_path = os.path.join(UPLOAD_FOLDER, f'{job_id}_{filename}')
+        file.save(input_path)
+        
+        logger.info(f"Processing PDF file: {filename} with job_id: {job_id}, start_page: {start_page}")
+        
+        # Check if main3.py exists
+        if not os.path.exists('main3.py'):
+            return jsonify({'error': 'ไม่พบไฟล์ main3.py สำหรับ Format mode'}), 500
+        
+        # Process the PDF with main3.py
+        result, error = process_pdf_file_with_main3_py(input_path, start_page, job_id)
+        
+        if error:
+            return jsonify({'error': error}), 500
+        
+        logger.info(f"PDF processing completed successfully for job_id: {job_id}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in PDF processing: {e}")
+        return jsonify({'error': f'เกิดข้อผิดพลาดที่ไม่คาดคิด: {str(e)}'}), 500
+
+@app.route('/download/<format>')
+def download_pdf_results(format):
+    """Download PDF processing results in specified format"""
+    try:
+        if format == 'txt':
+            txt_file = os.path.join(OUTPUT_FOLDER, 'pdf_results.txt')
+            if not os.path.exists(txt_file):
+                return jsonify({'error': 'ไม่พบไฟล์ผลลัพธ์'}), 404
+            
+            return send_file(txt_file, as_attachment=True, download_name='pdf_extraction_results.txt')
+            
+        elif format == 'json':
+            json_file = os.path.join(OUTPUT_FOLDER, 'pdf_results.json')
+            if not os.path.exists(json_file):
+                return jsonify({'error': 'ไม่พบไฟล์ผลลัพธ์'}), 404
+            
+            return send_file(json_file, as_attachment=True, download_name='pdf_extraction_results.json')
+        
+        else:
+            return jsonify({'error': 'รูปแบบไฟล์ไม่ถูกต้อง'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': f'เกิดข้อผิดพลาดในการดาวน์โหลด: {str(e)}'}), 500
+
 @app.route('/api/download/<job_id>/<file_type>')
 def download_file(job_id, file_type):
-    """Download processed files"""
+    """Download processed files for Matrix/Joint modes"""
     try:
         if file_type == 'price':
             filename = f'Price_{job_id}.xlsx'
@@ -373,11 +516,13 @@ def health_check():
         'status': 'healthy',
         'available_scripts': {
             'main.py': os.path.exists('main.py'),
-            'main2.py': os.path.exists('main2.py')
+            'main2.py': os.path.exists('main2.py'),
+            'main3.py': os.path.exists('main3.py')
         },
         'available_templates': {
             'index.html': os.path.exists('index.html'),
-            'index2.html': os.path.exists('index2.html')
+            'index2.html': os.path.exists('index2.html'),
+            'index3.html': os.path.exists('index3.html')
         }
     })
 
@@ -391,6 +536,7 @@ if __name__ == '__main__':
     print("   http://localhost:5000/original  → Matrix Mode (index.html)")
     print("   http://localhost:5000/matrix    → Matrix Mode (index.html)")
     print("   http://localhost:5000/joint     → Joint Mode (index2.html)")
+    print("   http://localhost:5000/format    → Format Mode - PDF Processing (index3.html)")
     print("   http://localhost:5000/health    → Health Check")
     print()
     print("📱 You can also access from other devices at: http://[your-ip]:5000")
@@ -398,7 +544,7 @@ if __name__ == '__main__':
     print()
     
     # Check required files
-    required_files = ['main.py', 'main2.py', 'index.html', 'index2.html']
+    required_files = ['main.py', 'main2.py', 'main3.py', 'index.html', 'index2.html', 'index3.html']
     missing_files = [f for f in required_files if not os.path.exists(f)]
     
     if missing_files:
@@ -412,11 +558,17 @@ if __name__ == '__main__':
         import flask
         import pandas
         import openpyxl
-        print("✅ All required packages are installed")
+        print("✅ Required packages for Matrix/Joint modes are installed")
+        try:
+            import pdfplumber
+            print("✅ pdfplumber is installed - PDF processing available")
+        except ImportError:
+            print("⚠️  pdfplumber not installed - PDF processing will not work")
+            print("   Install with: pip install pdfplumber")
     except ImportError as e:
         print(f"❌ Missing required package: {e}")
         print("💡 Please install required packages:")
-        print("   pip install flask pandas openpyxl")
+        print("   pip install flask pandas openpyxl pdfplumber")
         exit(1)
     
     app.run(debug=True, host='0.0.0.0', port=5000)

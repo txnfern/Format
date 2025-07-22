@@ -1,9 +1,10 @@
-numpy==1.26.4
-pandas==2.2.2
+numpy==1.24.3
+pandas==2.0.3
 openpyxl==3.1.2
 Flask==2.3.2
 Werkzeug==2.3.6
 gunicorn==21.2.0
 python-dotenv==1.0.0
 pydantic==2.5.0
-python-multipart==0.0.6   # ถ้าใช้
+python-multipart==0.0.6  # pip จะตัดตรงนี้เป็นคอมเมนต์ได้
+pdfplumber==0.10.3
