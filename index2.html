@@ -291,6 +291,26 @@
         </div>
 
         <script>
+
+            const form = document.getElementById('matrixForm');
+            form.addEventListener('submit', async (e) => {
+            e.preventDefault();               // ป้องกันการรีเฟรชหน้า
+            const formData = new FormData(form);
+            try {
+                const res = await fetch('/api/process-joint', {
+                method: 'POST',
+                body: formData
+                });
+                if (!res.ok) throw new Error('Error: ' + res.status);
+                const data = await res.json();
+                // ตัวอย่างแสดงลิงก์ผลลัพธ์
+                alert(`Price: ${data.price_url}\nType: ${data.type_url}`);
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาดในการประมวลผล');
+            }
+            });
+
             let selectedFile = null;
             
             // File input handling
