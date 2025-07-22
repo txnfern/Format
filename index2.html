@@ -291,15 +291,6 @@
         </div>
 
         <script>
-
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-
-            const res = await fetch('/api/process-joint', {
-            method: 'POST',
-            body: formData
-            });
-
             let selectedFile = null;
             
             // File input handling

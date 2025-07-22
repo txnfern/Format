@@ -10,8 +10,6 @@ import time
 import shutil
 from werkzeug.utils import secure_filename
 
-
-
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
