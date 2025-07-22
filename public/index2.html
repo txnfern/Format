@@ -297,7 +297,7 @@
             e.preventDefault();               // ป้องกันการรีเฟรชหน้า
             const formData = new FormData(form);
             try {
-                const res = await fetch('/api/process-joint', {
+                const res = await fetch('/api/process-joint.py', {
                 method: 'POST',
                 body: formData
                 });

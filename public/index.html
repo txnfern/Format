@@ -296,7 +296,7 @@
             e.preventDefault();               // ป้องกันการรีเฟรชหน้า
             const formData = new FormData(form);
             try {
-                const res = await fetch('/api/process-matrix', {
+                const res = await fetch('/api/process-matrix.py', {
                 method: 'POST',
                 body: formData
                 });
