@@ -15,6 +15,7 @@ class PDFExtractorWeb:
         self.glass_data = []
         self.product_info = []
         
+        
     def extract_data_from_file(self, file_path: str, start_page: int = 3) -> Dict:
         """Extract data from PDF file using the original logic"""
         self.reference_code_data = []
